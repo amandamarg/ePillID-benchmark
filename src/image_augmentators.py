@@ -115,6 +115,38 @@ def transform_channels(tr, img):
 
 transform_half_per_channel = lambda aug: transforms.Lambda(lambda x: random.choice([aug(x), transform_channels(aug,x)]))
 
+'''
+SigmoidContrast does not accept PIL objects
+'''
+class SigmoidContrast(transforms.Transform):
+    def __init__(self, gain, cutoff):
+        super().__init__()
+        self.gain = gain
+        self.cutoff = cutoff
+    
+    def make_params(self, flat_inputs: List[Any]) -> Dict[str, Any]:
+        if isinstance(self.gain, tuple):
+            min_gain, max_gain = self.gain
+            gain = random.uniform(float(min_gain), float(max_gain))
+        else:
+            gain = float(self.gain)
+    
+        if isinstance(self.cutoff, tuple):
+            min_cutoff, max_cutoff = self.cutoff
+            cutoff = random.uniform(float(min_cutoff), float(max_cutoff))
+        else:
+            cutoff = float(self.cutoff)
+        params = dict(gain=gain, cutoff=cutoff)
+        return params
+            
+    def transform(self, inpt: Any, params: Dict[str, Any]):
+        gain = params["gain"]
+        cutoff = params["cutoff"]
+        if inpt.dtype == torch.int8:
+            inpt = transforms.ToDtype(torch.float32, scale=True)(inpt)
+            return 255*torch.nn.Sigmoid()(gain*(inpt - cutoff))
+        return torch.nn.Sigmoid()(gain*(inpt - cutoff))
+
 def get_imgaug_sequences(low_gblur = 1.0, 
 high_gblur = 3.0, addgn_base_ref = 0.01, 
 addgn_base_cons = 0.001, rot_angle = 180, 
@@ -128,8 +160,7 @@ max_scale = 1.0, add_perspective = False
         print("Adding perspective transform to augmentation")
         affine_list.append(transforms.RandomPerspective(distortion_scale=(0.01, 0.1)))
         gamma_contrast = transforms.Lambda(lambda x: transforms.functional.adjust_gamma(x, random.uniform(.5, 1.7)))
-        contrast_list.append(transform_half_per_channel(gamma_contrast))
-        #TODO: sigmoid
+        contrast_list.extend([transform_half_per_channel(gamma_contrast), SigmoidContrast(gain=(8,12), cutoff=(0.2,0.8))])
 
     gauss_noise = lambda a,b: transform_half_per_channel(transforms.GaussianNoise(sigma=random.uniform(a,b)))
 
