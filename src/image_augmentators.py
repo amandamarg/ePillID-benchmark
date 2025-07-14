@@ -26,21 +26,13 @@ sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 # def add_per_channel(image, transform):
 #     ch_r, ch_b, ch_g = transform(image[])
 
-def randomize_parameters(params_to_randomize, params={}):
-    for (key, value) in (params_to_randomize.items()):
-        func, a, b = value
-        params[key] = func(a,b)
-    return params
+# def randomize_parameters(params_to_randomize, params={}):
+#     for (key, value) in (params_to_randomize.items()):
+#         func, a, b = value
+#         params[key] = func(a,b)
+#     return params
 
-def split_channels(img):
-    if isinstance(img, Image.Image):
-        img = transforms.Compose([transforms.ToImage(), transforms.ToDtype(torch.float32, scale=True)])(img)
-    r,g,b = torch.unbind(img, dim=-3)
-    return torch.unsqueeze(r,-3), torch.unsqueeze(g,-3), torch.unsqueeze(b,-3)
 
-def transform_channels(tr, img):
-    r,g,b = split_channels(img)
-    return torch.cat([tr(r), tr(g), tr(b)], dim=-3)
 
 def get_imgaug_sequences(low_gblur = 1.0, 
 high_gblur = 3.0, addgn_base_ref = 0.01, 
@@ -111,21 +103,31 @@ max_scale = 1.0, add_perspective = False
     
     return affine_seq, ref_seq, cons_seq
 
-transform_half_per_channel = lambda aug: transforms.Lambda(lambda x: aug(x) if random.binomial(n=1, p=.5) else transform_channels(aug,x))
+def split_channels(img):
+    if isinstance(img, Image.Image):
+        img = transforms.Compose([transforms.ToImage(), transforms.ToDtype(torch.float32, scale=True)])(img)
+    r,g,b = torch.unbind(img, dim=-3)
+    return torch.unsqueeze(r,-3), torch.unsqueeze(g,-3), torch.unsqueeze(b,-3)
+
+def transform_channels(tr, img):
+    r,g,b = split_channels(img)
+    return torch.cat([tr(r), tr(g), tr(b)], dim=-3)
+
+transform_half_per_channel = lambda aug: transforms.Lambda(lambda x: random.choice([aug(x), transform_channels(aug,x)]))
 
 def get_imgaug_sequences(low_gblur = 1.0, 
 high_gblur = 3.0, addgn_base_ref = 0.01, 
 addgn_base_cons = 0.001, rot_angle = 180, 
 max_scale = 1.0, add_perspective = False
 ):
-    affine_seq = transforms.RandomChoice([transforms.RandomAffine(degrees=(-rot_angle, rot_angle), scale=(0.8, max_scale), translate=(.05, .05), shear=(-4,4)), transforms.RandomAffine(rot_angle=(-rot_angle, rot_angle), scale=(0.8, max_scale), translate=(.05, .05))])
+    affine_seq = transforms.RandomChoice([transforms.RandomAffine(degrees=(-rot_angle, rot_angle), scale=(0.8, max_scale), translate=(.05, .05), shear=(-4,4)), transforms.RandomAffine(degrees=(-rot_angle, rot_angle), scale=(0.8, max_scale), translate=(.05, .05))])
     affine_list = [affine_seq]
     contrast_list = [transforms.ColorJitter(brightness=(.75, 1.25), contrast=(0.7, 1.0)), transforms.ColorJitter(brightness=(.4, 1.6),contrast=(0.4, 1.0))]
 
     if add_perspective:
         print("Adding perspective transform to augmentation")
         affine_list.append(transforms.RandomPerspective(distortion_scale=(0.01, 0.1)))
-        gamma_contrast = transforms.Lambda(lambda x: transforms.functional.adjust_gamma(x, random.uniform(.5,1.7)))
+        gamma_contrast = transforms.Lambda(lambda x: transforms.functional.adjust_gamma(x, random.uniform(.5, 1.7)))
         contrast_list.append(transform_half_per_channel(gamma_contrast))
         #TODO: sigmoid
 
@@ -134,11 +136,12 @@ max_scale = 1.0, add_perspective = False
 
     ref_seq = transforms.Compose(affine_list + [transforms.RandomChoice(contrast_list),    
                                                 transforms.RandomChoice([gauss_noise(0.0, 3*addgn_base_ref), gauss_noise(0.0, addgn_base_ref)]),
-                                                transforms.RandomChoice([transforms.GaussianBlur(kernel_size=5, sigma=(0.0,high_gblur)), transforms.GaussianBlur(kernel_size=5, sigma=(0.0,low_gblur))])
+                                                transforms.RandomChoice([transforms.GaussianBlur(kernel_size=5, sigma=(0.001,high_gblur)), transforms.GaussianBlur(kernel_size=5, sigma=(0.001,low_gblur))])
                                 ])
 
     cons_seq = transforms.Compose(affine_list + [
         transforms.ColorJitter(brightness=(.9, 1.1), contrast=(.9, 1.1)),
-        # transforms.GaussianNoise(sigma=),
-        transforms.GaussianBlur(kernel_size=5, sigma=(0, low_gblur))
+        gauss_noise(0.0, 5*addgn_base_cons),
+        transforms.GaussianBlur(kernel_size=5, sigma=(0.001, low_gblur))
     ])
+    return affine_seq, ref_seq, cons_seq
