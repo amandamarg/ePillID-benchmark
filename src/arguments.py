@@ -1,13 +1,24 @@
 import argparse
 import os
 import json
-from distutils.util import strtobool
+# from distutils.util import strtobool
 
+'''source: https://github.com/pypa/distutils/blob/main/distutils/util.py'''
+def strtobool(val: str) -> bool:
+    val = val.lower()
+    true_vals = ["y", "yes", "t", "true", "on", "1"]
+    false_vals = ["n", "no", "f", "false", "off", "0"]
+    if val in true_vals:
+        return True
+    elif val in false_vals:
+        return False
+    else:
+        raise ValueError(f"invalid truth value {val!r}")
 
 def common_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_root_dir', default="/mydata")
+    parser.add_argument('--data_root_dir', default="./mydata")
     parser.add_argument('--img_dir', default="classification_data")
     parser.add_argument('--supress_warnings', action='store_true')
 
