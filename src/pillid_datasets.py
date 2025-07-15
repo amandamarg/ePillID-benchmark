@@ -9,7 +9,7 @@ import os
 import numpy as np
 import socket
 import torch
-import torchvision.transforms as transforms
+import torchvision.transforms.v2 as transforms
 import pandas as pd
 from PIL import Image
 import sys
@@ -65,7 +65,7 @@ class SingleImgPillID(Dataset):
         img_row = self.df.iloc[index]
 
         img = self.load_img(img_row)
-        img = Image.fromarray(img)
+        # img = Image.fromarray(img)
 
         if self.transform is not None:
             img = self.transform(img)
@@ -107,8 +107,7 @@ class SingleImgPillID(Dataset):
             else:
                 # current_img = self.cons_seq.augment_images(current_img)
                 current_img = self.cons_seq(current_img)
-
-        return current_img[0]
+        return transforms.ToPILImage()(current_img)
 
 class SiamesePillID(Dataset):
     """
@@ -189,7 +188,7 @@ class SiamesePillID(Dataset):
                 current_img = self.cons_seq(current_img)
 
 
-        return current_img[0]
+        return transforms.ToPILImage()(current_img)
 
     def __getitem__(self, index):
         if self.train:
@@ -213,8 +212,8 @@ class SiamesePillID(Dataset):
         img1 = self.load_img(img1_row)
         img2 = self.load_img(img2_row)
 
-        img1 = Image.fromarray(img1)
-        img2 = Image.fromarray(img2)
+        # img1 = Image.fromarray(img1)
+        # img2 = Image.fromarray(img2)
 
         if self.transform is not None:
             img1 = self.transform(img1)
@@ -294,7 +293,7 @@ class TripletPillID(Dataset):
             else:
                 current_img = self.cons_seq.augment_images(current_img)
 
-        return current_img[0]
+        return transforms.ToPILImage()(current_img)
 
     def __getitem__(self, index):
         if self.train:
@@ -315,9 +314,9 @@ class TripletPillID(Dataset):
         img2 = self.load_img(img2_row)
         img3 = self.load_img(img3_row)
 
-        img1 = Image.fromarray(img1)
-        img2 = Image.fromarray(img2)
-        img3 = Image.fromarray(img3)
+        # img1 = Image.fromarray(img1)
+        # img2 = Image.fromarray(img2)
+        # img3 = Image.fromarray(img3)
         if self.transform is not None:
             img1 = self.transform(img1)
             img2 = self.transform(img2)
@@ -394,9 +393,10 @@ class BalancedBatchSamplerPillID(BatchSampler):
 
 if __name__ == '__main__':
     import pandas as pd
-    all_imgs_csv = '/mydata/folds/pilltypeid_nih_sidelbls_metric_5folds/base/pilltypeid_nih_sidelbls_metric_5folds_all.csv'
-    val_imgs_csv = '/mydata/folds/pilltypeid_nih_sidelbls_metric_5folds/base/pilltypeid_nih_sidelbls_metric_5folds_3.csv'
-
+    
+    all_imgs_csv = '/Users/Amanda/Desktop/ePillID-benchmark/mydata/folds/pilltypeid_nih_sidelbls0.01_metric_5folds/base/pilltypeid_nih_sidelbls0.01_metric_5folds_all.csv'
+    val_imgs_csv = '/Users/Amanda/Desktop/ePillID-benchmark/mydata/folds/pilltypeid_nih_sidelbls0.01_metric_5folds/base/pilltypeid_nih_sidelbls0.01_metric_5folds_3.csv'
+    print(os.path.exists(all_imgs_csv))
     all_images_df = pd.read_csv(all_imgs_csv)
     ref_df = all_images_df[all_images_df['is_ref']]
 
@@ -414,3 +414,5 @@ if __name__ == '__main__':
 
         rows = val_df.iloc[d]
         print(rows[['pilltype_id', 'is_ref', 'is_front', 'images']].sort_values(by=['pilltype_id', 'is_ref']))
+    
+

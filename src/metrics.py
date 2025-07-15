@@ -96,7 +96,7 @@ def classification_accuracy(outputs, classes, topk=(1,)):
 
         accuracies = []
         for k in topk:
-            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
             accuracies.append(correct_k.mul_(1.0 / batch_size))
 
         return accuracies
