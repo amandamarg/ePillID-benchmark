@@ -9,7 +9,6 @@ import os
 import numpy as np
 import socket
 import torch
-from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 import pandas as pd
 from PIL import Image
@@ -46,6 +45,7 @@ class SingleImgPillID(Dataset):
         self.train = train
         self.transform = transform
         self.do_augmentators = augment if augment is not None else train
+        # self.do_augmentators = False
         self.labelcol = labelcol
 
         if self.do_augmentators:
@@ -97,12 +97,16 @@ class SingleImgPillID(Dataset):
             rot_degree = img_row['rot_degree']
             img = img.rotate(rot_degree)
 
-        current_img = [np.array(img)]
+        # current_img = [np.array(img)]
+        current_img = transforms.Compose([transforms.ToImage(), transforms.ToDtype(torch.float32, scale=True)])(img)
         if self.do_augmentators:
             if is_ref:
-                current_img = self.ref_seq.augment_images(current_img)
+                # current_img = self.ref_seq.augment_images(current_img)
+                current_img = self.ref_seq(current_img)
+
             else:
-                current_img = self.cons_seq.augment_images(current_img)
+                # current_img = self.cons_seq.augment_images(current_img)
+                current_img = self.cons_seq(current_img)
 
         return current_img[0]
 
@@ -117,7 +121,7 @@ class SiamesePillID(Dataset):
         self.train = train
         self.transform = transform
         self.do_augmentators = augment if augment is not None else train
-
+        # self.do_augmentators = False
         if self.do_augmentators:
             _, ref_seq, cons_seq = get_imgaug_sequences(low_gblur = 0.8,
                                                      high_gblur = 1.2,
@@ -173,12 +177,17 @@ class SiamesePillID(Dataset):
 
         img = Image.open(img_path)
 
-        current_img = [np.array(img)]
+        # current_img = [np.array(img)]
+        current_img = transforms.Compose([transforms.ToImage(), transforms.ToDtype(torch.float32, scale=True)])(img)
         if self.do_augmentators:
             if is_ref:
-                current_img = self.ref_seq.augment_images(current_img)
+                # current_img = self.ref_seq.augment_images(current_img)
+                current_img = self.ref_seq(current_img)
+
             else:
-                current_img = self.cons_seq.augment_images(current_img)
+                # current_img = self.cons_seq.augment_images(current_img)
+                current_img = self.cons_seq(current_img)
+
 
         return current_img[0]
 
@@ -227,7 +236,7 @@ class TripletPillID(Dataset):
         self.train = train
         self.transform = transform
         self.do_augmentators = augment if augment is not None else train
-
+        # self.do_augmentators  = False
         if self.do_augmentators:
             _, ref_seq, cons_seq = get_imgaug_sequences(low_gblur = 0.8,
                                                      high_gblur = 1.2,
@@ -277,7 +286,8 @@ class TripletPillID(Dataset):
 
         img = Image.open(img_path)
 
-        current_img = [np.array(img)]
+        # current_img = [np.array(img)]
+        current_img = transforms.Compose([transforms.ToImage(), transforms.ToDtype(torch.float32, scale=True)])(img)
         if self.do_augmentators:
             if is_ref:
                 current_img = self.ref_seq.augment_images(current_img)
